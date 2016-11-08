@@ -1,13 +1,40 @@
 sudo: false
-language: "perl"
+language: perl
 before_install:
-  - "npm install -g dredd"
-  - "bundle install"
+  - >-
+    curl -X POST -H "Content-Type: application/json" -H "Authorization: token
+    $GH_TOKEN" -d "{\"state\":\"pending\",\"description\":\"Dependent build
+    created\",\"context\":\"continuous-integration/travis-ci/perl-hooks-handler\",\"target_url\":\"https://travis-ci.org/apiaryio/dredd/builds/$TRAVIS_BUILD_ID\"}"
+    'https://api.github.com/repos/apiaryio/dredd/statuses/1dba2979e3a0003cf2f4681e94d2d049205e191d'
+  - npm install -g npm@latest
+  - npm link --python=python2 ./__dredd__
+  - bundle install
 script:
-  - "perl Build.PL && ./Build build && ./Build test"
-  - "./Build install"
-  - "bundle exec cucumber"
-perl:
-  - "5.18"
-  - "5.20"
-  - "5.22"
+  - perl Build.PL && ./Build build && ./Build test
+  - ./Build install
+  - bundle exec cucumber
+perl: '5.22'
+env:
+  global:
+    secure: >-
+      Yst3Ss9By2T5E6OQBWtK0mg3DNF2ccf02sRbMrnOLEb+3f74+z+rioI2dICg3m7Z7mDjV6WkqEAZqWW5tP809LxU3Y9UP50J+JfEW9hcSw3gTLAWRh3LRnjWjBRDvChHCCaVIn5WKPeouJTi9H91PclLoXr+EOqkmBPKMcVCSek=
+after_failure:
+  - >-
+    curl -X POST -H "Content-Type: application/json" -H "Authorization: token
+    $GH_TOKEN" -d "{\"state\":\"error\",\"description\":\"Dependent build
+    finished\",\"context\":\"continuous-integration/travis-ci/perl-hooks-handler\",\"target_url\":\"https://travis-ci.org/apiaryio/dredd/builds/$TRAVIS_BUILD_ID\"}"
+    'https://api.github.com/repos/apiaryio/dredd/statuses/1dba2979e3a0003cf2f4681e94d2d049205e191d'
+after_success:
+  - >-
+    curl -X POST -H "Content-Type: application/json" -H "Authorization: token
+    $GH_TOKEN" -d "{\"state\":\"success\",\"description\":\"Dependent build
+    finished\",\"context\":\"continuous-integration/travis-ci/perl-hooks-handler\",\"target_url\":\"https://travis-ci.org/apiaryio/dredd/builds/$TRAVIS_BUILD_ID\"}"
+    'https://api.github.com/repos/apiaryio/dredd/statuses/1dba2979e3a0003cf2f4681e94d2d049205e191d'
+  - >-
+    if [[ $TRAVIS_BRANCH = master ]]; then echo "Deleting aborted (master)" &&
+    exit 1; fi
+  - git branch -D $TRAVIS_BRANCH
+  - >-
+    git remote set-url origin "https://$GH_TOKEN@github.com/apiaryio/dredd.git"
+    > /dev/null 2>&1
+  - git push origin -f --delete $TRAVIS_BRANCH > /dev/null 2>&1
